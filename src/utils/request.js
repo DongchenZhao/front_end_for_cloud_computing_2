@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const instance = axios.create({
 	// 设置baseUr地址,如果通过proxy跨域可直接填写base地址
-	baseURL: 'http://172.19.240.113:9091/',
+	baseURL: 'http://172.19.240.113:8000/',
 	// 定义统一的请求头部
 	headers: {},
 	// 配置请求超时时间

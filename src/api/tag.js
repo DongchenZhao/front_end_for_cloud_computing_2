@@ -19,4 +19,11 @@ export default {
 			method: 'GET'
 		});
 	},
+
+	searchRequest: function (packageName) {
+		return axios({
+			url: '/search/' + packageName,
+			method: 'GET'
+		});
+	}
 };

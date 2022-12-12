@@ -1,21 +1,10 @@
 <template>
   <v-app>
     <v-app-bar
-        app
-        color="primary"
-        dark
+      app
+      color="primary"
     >
-      <v-tabs
-          :value="curTab"
-          style="margin-left: 100px"
-      >
-        <v-tab @click="tabChanged(0)">
-          flink
-        </v-tab>
-        <v-tab @click="tabChanged(1)">
-          spark
-        </v-tab>
-      </v-tabs>
+      <h2 style="color: white">Search for archlinux packages</h2>
     </v-app-bar>
     <v-main>
       <router-view/>
@@ -25,8 +14,6 @@
 
 <script>
 
-import {mapGetters, mapMutations} from 'vuex';
-
 export default {
 	name: 'App',
 
@@ -34,15 +21,5 @@ export default {
 
 	watch: {},
 
-	computed: {
-		...mapGetters(['curTab'])
-	},
-
-	methods: {
-		...mapMutations(['changeCurTab']),
-		tabChanged(val) {
-			this.changeCurTab(val);
-		}
-	}
 };
 </script>

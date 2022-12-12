@@ -1,92 +1,51 @@
 <template>
-  <v-container fluid style="height: 100%">
-    <v-fade-transition>
-    <v-card
-        v-if="panelVisible"
-        style="height: 200px; position: absolute; z-index: 999; padding:10px 10px 10px 10px;">
-      <v-container>
-        <v-row style="display: flex; flex-direction: row; justify-content: right">
-          <v-btn icon small @click="panelVisible=false">
-            <v-icon>
-              mdi-close
-            </v-icon>
+  <v-container fluid style="height: 100%;">
+    <v-row :style="searchBoxHeightStyle" style="transition: height 0.2s">
+        <v-col :cols="3"/>
+        <v-col :cols="6" style="display: flex; flex-direction: row; align-items: center">
+          <v-text-field
+              v-model="searchInput"
+              label="输入包名"
+              clearable
+              rounded
+              solo
+              hide-details
+              @keydown.enter="sendSearchRequest"
+              @keydown.esc="searchResultVisible = false"
+              @click:clear="searchResultVisible = false"
+          />
+          <v-btn
+              style="margin-left: 40px"
+              min-width="150px"
+              large
+              color="primary"
+              rounded
+              @click="sendSearchRequest"
+          >
+            搜 索
           </v-btn>
-        </v-row>
-        <v-row style="display: flex; flex-direction: row; align-items: center; justify-content: center">
-          <v-col cols="3">
-            当前tag
-          </v-col>
-          <v-col cols="9">
-            <v-autocomplete
-                v-model="curTag"
-                :items="tagLs"
-                solo
-                dense
-                hide-details
-                no-data-text="无"
-            ></v-autocomplete>
-          </v-col>
-        </v-row>
-        <v-row style="display: flex; flex-direction: row; align-items: center; justify-content: center">
-          <v-col cols="3">
-            topN
-          </v-col>
-          <v-col cols="9">
-            <v-autocomplete
-                v-model="nTopCnt"
-                :items="[3,4,5,6,7,8,9,10,11,12,13,14,15]"
-                solo
-                dense
-                hide-details
-                no-data-text="无"
-            ></v-autocomplete>
-          </v-col>
+        </v-col>
+        <v-col :cols="3"/>
+      </v-row>
+    <v-row style="height: 85%" v-show="searchResultVisible">
+      <v-card style="width: 100%; margin: 20px">
+        <v-card-title style="height: 10%; display: flex; justify-content: center; align-items: center">
+          {{previousSearchInput}}
+        </v-card-title>
+        <v-container v-if="searchHit" fluid style="width: 100%; background: antiquewhite; height: 90%">
 
-        </v-row>
-      </v-container>
-    </v-card>
-    </v-fade-transition>
-    <v-btn
-        fab
-        style="position: absolute; z-index: 999"
-        @click="panelVisible=true"
-        v-if="!panelVisible"
-    >
-      <v-icon>
-        mdi-tune
-      </v-icon>
-    </v-btn>
+        </v-container>
+        <v-container v-else fluid style="width: 100%; height: 90%">
 
-
-    <v-tooltip right>
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn
-            fab
-            style="position: absolute; z-index: 999; bottom: 20px"
-            v-bind="attrs"
-            v-on="on"
-        >
-          <v-icon>
-            mdi-help
-          </v-icon>
-        </v-btn>
-      </template>
-      <span>数据来自于10分钟之内，每5秒钟更新一次</span>
-    </v-tooltip>
-
-    <div style="width: 100% ;height: 100%;" id="mount-point">
-
-    </div>
-
+        </v-container>
+      </v-card>
+    </v-row>
   </v-container>
 </template>
 
 <script>
-import tag from '@/api/tag';
-import * as echarts from 'echarts';
-import {splitData, getFakeData, processData} from '@/utils/tools';
-import {tagLs} from '@/utils/config';
 import {mapGetters} from 'vuex';
+import tag from '@/api/tag';
 
 export default {
 	name: 'Home',
@@ -95,116 +54,102 @@ export default {
 
 	data() {
 		return {
-			baseOptions: {
-				xAxis: {
-					max: 'dataMax'
-				},
-				yAxis: {
-					type: 'category',
-					data: [],
-					inverse: true,
-					animationDuration: 300,
-					animationDurationUpdate: 300,
-					max: 7 // only the largest 3 bars will be displayed
-				},
-				series: [
-					{
-						realtimeSort: true,
-						name: 'X',
-						type: 'bar',
-						data: [],
-						label: {
-							show: true,
-							position: 'right',
-							valueAnimation: true
-						}
-					}
-				],
-				legend: {
-					show: false
-				},
-				animationDuration: 0,
-				animationDurationUpdate: 300,
-				animationEasing: 'linear',
-				animationEasingUpdate: 'linear'
-			},
-			panelVisible: true,
-			tagLs: tagLs,
-			curData: {},
-			nTopCnt: 10,
-			curTag: 'java',
-			keyLs: [],
-			valLs: [],
-			myChart: Object
+			searchInput: '',
+			searchResultVisible: false,
+			searchResult: {},
+			depParentChildInfo: {},
+			simParentChildInfo:{},
+			possiblePackages: [],
+			searchHit: false,
+			previousSearchInput: '',
 		};
 	},
 
-	async mounted() {
-		this.initEcharts();
-		await this.getData();
-		setInterval(this.getData, 5000);
-	},
-
 	watch: {
-		nTopCnt() {
-			console.log('nTopChanged');
-			this.baseOptions.yAxis.max = this.nTopCnt - 1;
-			this.myChart.setOption(this.baseOptions);
-		},
-		curTag() {
-			console.log('curTagChanged', this.curTag);
-			this.getData();
-		},
-		curTab(){
+		curTab() {
 			console.log('curTabChanged', this.curTab);
 			this.getData();
 		}
 	},
-	computed:{
-		...mapGetters(['curTab'])
+	computed: {
+		...mapGetters(['curTab']),
+		searchBoxHeightStyle: function () {
+			return this.searchResultVisible ? {height: '15%'} : {height: '60%'};
+		},
+		depGrandParents: function (){
+			if(this.depParentChildInfo.hasOwn('grandParents')){
+				return this.depParentChildInfo.grandParents;
+			}
+			return [];
+		},
+		depParent: function (){
+			if(this.depParentChildInfo.hasOwn('parents')){
+				return this.depParentChildInfo.parents;
+			}
+			return [];
+		},
+		depChildren: function (){
+			if(this.depParentChildInfo.hasOwn('children')){
+				return this.depParentChildInfo.children;
+			}
+			return [];
+		},
+		depGrandChildren: function (){
+			if(this.depParentChildInfo.hasOwn('grandChildren')){
+				return this.depParentChildInfo.grandChildren;
+			}
+			return [];
+		},
+
+		simGrandParents: function (){
+			if(this.simParentChildInfo.hasOwn('grandParents')){
+				return this.simParentChildInfo.grandParents;
+			}
+			return [];
+		},
+		simParent: function (){
+			if(this.simParentChildInfo.hasOwn('parents')){
+				return this.simParentChildInfo.parents;
+			}
+			return [];
+		},
+		simChildren: function (){
+			if(this.simParentChildInfo.hasOwn('children')){
+				return this.simParentChildInfo.children;
+			}
+			return [];
+		},
+		simGrandChildren: function (){
+			if(this.simParentChildInfo.hasOwn('grandChildren')){
+				return this.simParentChildInfo.grandChildren;
+			}
+			return [];
+		},
 	},
 
 	methods: {
-		initEcharts() {
-			// 基于准备好的dom，初始化echarts实例
-			this.myChart = echarts.init(document.getElementById('mount-point'));
-			// 绘制图表
-			// this.myChart.setOption(this.baseOptions);
-		},
-		refreshEcharts() {
-			[this.keyLs, this.valLs] = splitData(getFakeData(this.curTag));
-			this.baseOptions.series[0].data = this.valLs;
-			this.baseOptions.yAxis.data = this.keyLs;
-			this.myChart.setOption(this.baseOptions);
-		},
-		async getData(){
-			let constTag;
-			let originTag = this.curTag;
-			if(this.curTag === 'c++'){
-				constTag = 'c%2b%2b';
+		async sendSearchRequest() {
+			this.searchResult = {};
+			this.simParentChildInfo = {};
+			this.depParentChildInfo = {};
+			this.possiblePackages = [];
+			if (this.searchInput == null || this.searchInput.length === 0) {
+				return;
 			}
-			else if(this.curTag === 'c#'){
-				constTag = 'c%23';
-			}
-			else{
-				constTag = this.curTag;
-			}
-			if(this.curTab === 0){
-				const [resp, err] = await tag.flinkGetTag(constTag);
-				if(!err){
-					[this.keyLs, this.valLs] = processData(resp, originTag);
+			const [resp, err] = await tag.searchRequest(this.searchInput);
+			if (!err) {
+				this.previousSearchInput = this.searchInput;
+				this.searchResult = resp;
+				if(resp.hit){
+					this.depParentChildInfo = resp.depParentChildInfo;
+					this.simParentChildInfo = resp.simParentChildInfo;
+				}
+				else{
+					this.possiblePackages = resp.possiblePackages;
 				}
 			}
-			else{
-				const [resp, err] = await tag.sparkGetTag(constTag);
-				if(!err){
-					[this.keyLs, this.valLs] = processData(resp, originTag);
-				}
-			}
-			this.baseOptions.series[0].data = this.valLs;
-			this.baseOptions.yAxis.data = this.keyLs;
-			this.myChart.setOption(this.baseOptions);
-		},
+			this.searchResultVisible = true;
+		}
 	}
 };
 </script>
