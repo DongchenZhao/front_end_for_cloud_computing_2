@@ -41,5 +41,6 @@ module.exports = {
 		'vue/no-v-model-argument': 'off',
 		// 'vue/valid-v-bind-sync': 'off',
 		'vue/no-side-effects-in-computed-properties': 'off',
+		'no-prototype-builtins': 'off',
 	}
 };
